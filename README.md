@@ -2,7 +2,7 @@
 BF528 Project
 
 ## Methods
-This dataset consists of 8 samples: 4 WT and 4 KO derived from a human source. Initial quality control performed using FastQC v0.12.0 and visualized through MultiQC v1.17. Reads aligned to the gencode human primary assembly genome (GRCh38) using STAR v2.7.11b with default parameters. Alignment QC performed using samtools flagstats tool v1.19.2. Gene counts generated from alignments using VERSE v0.1.5 with default parameters and the gencode GRCh38 primary assembly GTF. Counts were combined and filtered to remove genes that did not have a non-zero count in all 8 samples. Normalization and differential expression analysis was performed with DESeq2 v1.42.1 using default parameters comparing the WT and KO samples.
+This dataset consists of 8 samples: 4 WT and 4 KO derived from a human source. Initial quality control performed using FastQC v0.12.0 and visualized through MultiQC v1.17. Reads aligned to the gencode human primary assembly genome (GRCh38) using STAR v2.7.11b with default parameters. Alignment QC performed using samtools flagstats tool v1.19.2. Gene counts generated from alignments using VERSE v0.1.5 with default parameters and the gencode GRCh38 primary assembly GTF. Counts were combined and filtered to remove genes that did not have a non-zero count in all 8 samples. Normalization and differential expression analysis was performed with DESeq2 v1.42.1 using default parameters comparing the WT and KO sample conditions.
 
 ## Questions to Address
 Briefly remark on the quality of the sequencing reads and the alignment statistics, make sure to specifically mention the following:
