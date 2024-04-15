@@ -1,1 +1,57 @@
-RNAseq snakemake 
+CONDITION = ['CTLrep1','KOrep1','CTLrep2','KOrep2','CTLrep3','KOrep3']
+READ = ['R1','R2']
+samples = expand('{CONDITION}_{READ}', CONDITION = CONDITION, READ = READ)
+
+rule all:
+	input: 
+		'results/GRCh38.primary_assembly.genome.fa.gz',
+		'results/gencode.v45.primary_assembly.annotation.gtf.gz',
+		'results/multiqc_report.html'
+
+rule get_m39:
+	output:
+		'results/GRCh38.primary_assembly.genome.fa.gz'
+	params:
+		outdir = 'results/'
+	shell:
+		'''
+		wget -P {params.outdir} -O {output}  https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_45/GRCh38.primary_assembly.genome.fa.gz
+        '''
+
+rule get_m39_gtf:
+	output: 
+		'results/gencode.v45.primary_assembly.annotation.gtf.gz'
+	params:
+		outdir = 'results/'
+	shell:
+		'''
+		wget -P {params.outdir} -O {output} https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_45/gencode.v45.primary_assembly.annotation.gtf.gz
+        '''
+
+rule fastqc:
+	input:
+		fastq = 'samples/{samples}.fastq.gz'
+	output: 
+		fastqc = 'results/fastqc/{samples}_fastqc.html'
+	conda: 
+		'envs/fastqc_env.yml'
+	params:
+		outdir = 'results/fastqc/'
+	shell: 
+		'''
+		fastqc {input.fastq} --outdir {params.outdir}
+		'''
+
+rule multiqc:
+	input:
+	    fastqc = expand('results/fastqc/{samples}_fastqc.html', samples = samples)
+	output:
+	    multiqc = 'results/multiqc_report.html'
+	conda: 
+		'envs/multiqc_env.yml'
+	params:
+	    outdir = 'results/'
+	shell:
+		'''
+		multiqc {params.outdir} --outdir {params.outdir}
+		'''
