@@ -4,11 +4,10 @@ samples = expand('{CONDITION}_{READ}', CONDITION = CONDITION, READ = READ)
 
 rule all:
 	input: 
-		'results/GRCh38.primary_assembly.genome.fa.gz',
-		'results/gencode.v45.primary_assembly.annotation.gtf.gz',
+		expand('results/flagstat/{CONDITION}_flagstat.txt', CONDITION = CONDITION),
 		'results/multiqc_report.html'
 
-rule get_m39:
+rule get_h38:
 	output:
 		'results/GRCh38.primary_assembly.genome.fa.gz'
 	params:
@@ -18,7 +17,7 @@ rule get_m39:
 		wget -P {params.outdir} -O {output}  https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_45/GRCh38.primary_assembly.genome.fa.gz
         '''
 
-rule get_m39_gtf:
+rule get_h38_gtf:
 	output: 
 		'results/gencode.v45.primary_assembly.annotation.gtf.gz'
 	params:
@@ -27,6 +26,18 @@ rule get_m39_gtf:
 		'''
 		wget -P {params.outdir} -O {output} https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_45/gencode.v45.primary_assembly.annotation.gtf.gz
         '''
+
+rule unzip_h38_gtf:
+	input:
+		fasta_gz = 'results/GRCh38.primary_assembly.genome.fa.gz',
+		gtf_gz = 'results/gencode.v45.primary_assembly.annotation.gtf.gz'
+	output:
+		fasta = 'results/GRCh38.primary_assembly.genome.fa',
+		gtf = 'results/gencode.v45.primary_assembly.annotation.gtf'
+	shell:
+		'''
+		gunzip -k {input.fasta_gz} {input.gtf_gz}
+		'''
 
 rule fastqc:
 	input:
@@ -54,4 +65,59 @@ rule multiqc:
 	shell:
 		'''
 		multiqc {params.outdir} --outdir {params.outdir}
+		'''
+
+rule star_genome:
+	input:
+		gtf = 'results/gencode.v45.primary_assembly.annotation.gtf',
+		fasta = 'results/GRCh38.primary_assembly.genome.fa'
+	output:
+		'results/h38_star/chrLength.txt'
+	conda:
+		'envs/star_env.yml'
+	params:
+		genomedir = 'results/h38_star/'
+	shell:
+		'''
+		STAR --runThreadN 1 \
+			 --runMode genomeGenerate \
+			 --genomeDir {params.genomedir} \
+		 	 --genomeFastaFiles {input.fasta} \
+		 	 --sjdbGTFfile {input.gtf} \
+		 	 --sjdbOverhang 99
+		'''
+
+rule star_align: 
+	input: 
+		R1 = 'samples/{CONDITION}_R1.fastq.gz',
+		R2 = 'samples/{CONDITION}_R2.fastq.gz',
+		star_dir = 'results/h38_star/'
+	output: 
+		bam = 'results/star/star_{CONDITION}Aligned.out.bam'
+	conda:
+		'envs/star_env.yml'
+	params:
+		outdir = 'results/star/star_{CONDITION}'
+	threads: 12
+	shell:
+		'''
+		STAR --runMode alignReads \
+			 --runThreadN {threads} \
+			 -- outSAMtype BAM Unsorted \
+			 -- genomeDir {input.star_dir} \
+			 --readFilesCommand gunzip -c \
+			 --readFilesIn {input.R1} {input.R2} \
+			 --outFileNamePrefix {params.outdir} 
+		'''
+
+rule flagstat:
+	input:
+		bam = 'results/star/star_{CONDITION}Aligned.out.bam'
+	output:
+		txt = 'results/flagstat/{CONDITION}_flagstat.txt'
+	conda:
+		'envs/samtools_env.yml'
+	shell:
+		'''
+		samtools flagstat {input.bam} > {output.txt}
 		'''
