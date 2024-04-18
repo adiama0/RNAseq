@@ -121,3 +121,30 @@ rule flagstat:
 		'''
 		samtools flagstat {input.bam} > {output.txt}
 		'''
+
+rule verse: 
+	input: 
+		bam = 'results/star/star_{CONDITION}Aligned.out.bam',
+		gtf = 'results/gencode.v45.primary_assembly.annotation.gtf'
+	output:
+		'results/verse/{CONDITION}.exon.txt'
+	conda:
+		'envs/verse_env.yml'
+	params:
+		verse = 'results/verse/{CONDITION}'
+	shell:
+		'''
+		verse -S -a {input.gtf} -o {params.verse} {input.bam}
+		'''
+
+rule concat_filter:
+	input:
+		verse_files = expand('results/verse/{CONDITION}.exon.txt', CONDITION=CONDITION)
+	output:
+		flt_matrix = 'results/filtered_matrix.csv'
+	params:
+		cts_matrix = 'results/count_matrix.csv'
+	shell:
+		'''
+		python concatenate_filter.py -i {input.verse_files} -o {output.flt_matrix} -t {params.cts_matrix}
+		'''
