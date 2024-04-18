@@ -1,0 +1,11 @@
+name: rnaseq_final_base
+channels:
+- conda-forge
+- bioconda
+
+dependencies:
+- python=3.9
+- snakemake=8.5.2
+- snakemake-executor-plugin-cluster-generic=1.0.7
+- pandas=2.2.1
+- jupyterlab=4.1.2
