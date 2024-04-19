@@ -1,3 +1,7 @@
+import argparse
+
+parser = argparse.ArgumentParser()
+
 parser.add_argument("-i", "--input", help='The input file specified will be the GTF file provided by snakemake',dest="input", required=True)
 parser.add_argument("-o", "--output", help='The output file name and path provided by snakemake',dest="output", required=True)
 
