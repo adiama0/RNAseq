@@ -150,3 +150,13 @@ rule concat_filter:
 		'''
 		python concatenate_filter.py -i {input.verse_files} -o {output.flt_matrix} -t {params.cts_matrix}
 		'''
+
+rule get_ids:
+	input:
+		gtf = 'results/gencode.v45.primary_assembly.annotation.gtf'
+	output: 
+		gene_ids = 'results/gene_ids.csv'
+	shell:
+		'''
+		python gene_ids.py -i {input.gtf} -o {output.gene_ids}
+		'''
