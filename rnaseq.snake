@@ -5,7 +5,8 @@ samples = expand('{CONDITION}_{READ}', CONDITION = CONDITION, READ = READ)
 rule all:
 	input: 
 		expand('results/flagstat/{CONDITION}_flagstat.txt', CONDITION = CONDITION),
-		'results/multiqc_report.html'
+		'results/multiqc_report.html',
+		'results/filtered_matrix.csv'
 
 rule get_h38:
 	output:
@@ -91,20 +92,21 @@ rule star_align:
 	input: 
 		R1 = 'samples/{CONDITION}_R1.fastq.gz',
 		R2 = 'samples/{CONDITION}_R2.fastq.gz',
-		star_dir = 'results/h38_star/'
+		star_file = 'results/h38_star/chrLength.txt'
 	output: 
 		bam = 'results/star/star_{CONDITION}Aligned.out.bam'
 	conda:
 		'envs/star_env.yml'
 	params:
-		outdir = 'results/star/star_{CONDITION}'
+		outdir = 'results/star/star_{CONDITION}',
+		star_dir = 'results/h38_star/'
 	threads: 12
 	shell:
 		'''
 		STAR --runMode alignReads \
 			 --runThreadN {threads} \
 			 -- outSAMtype BAM Unsorted \
-			 -- genomeDir {input.star_dir} \
+			 -- genomeDir {params.star_dir} \
 			 --readFilesCommand gunzip -c \
 			 --readFilesIn {input.R1} {input.R2} \
 			 --outFileNamePrefix {params.outdir} 
