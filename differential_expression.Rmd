@@ -1,1 +1,102 @@
-code
+library(DESeq2)
+library(tidyverse)
+library(fgsea)
+library(data.table)
+library(RColorBrewer)
+library(patchwork)
+
+# Read counts data
+counts <-  as.matrix(read.csv("results/filtered_matrix.csv", row.names = 'gene'))
+
+# Make coldata dataframe
+coldata <- data.frame(samples = colnames(counts), 
+  condition = c(rep('CTL', 3), rep('KO',3)), 
+  row.names = 'samples')
+
+# Make condition into factor 
+coldata$condition <- as.factor(coldata$condition) 
+
+# Set control as reference point (tells R what sample data to compare values with)
+coldata$condition <- relevel(coldata$condition, ref='CTL')
+
+dds <- DESeqDataSetFromMatrix(countData = counts,
+  colData = coldata,
+  design = ~ condition)
+
+# Optionally filter data based on counts
+# keep <- rowSums(counts(dds)) >= 10
+
+# run DESeq on dataset 
+dds <- DESeq(dds)
+
+# Contrast the DESeq results just by CTL and KO
+res <- results(dds, contrast = c('condition','CTL','KO'))
+
+# Ordered results based on smallest p-value 
+resOrdered <- res[order(res$pvalue),]
+
+# Set results as tibble
+resOrdered <- as_tibble(resOrdered)
+
+# Read in gene ids resulted from gtf file
+ids <- read.csv("results/gene_ids.csv",
+  header = FALSE, 
+  col.names = c("gene_id", "gene_name"))
+
+# Convert rownames of res to a column named gene_id
+resOrdered <- resOrdered %>% rownames_to_column(var = "gene_id")
+resOrdered$gene_id <- rownames(res)
+
+# Perform left join to add gene names from ids table to resOrdered based on gene_id
+merged_res <- left_join(ids, resOrdered, by = "gene_id")
+merged_res <- merged_res[merged_res$gene_id %in% rownames(res), ]
+
+# Perform GSEA analysis 
+# make list of log2FoldChange
+ranked_list <- data.frame(
+  gene_names = merged_res$gene_name,
+  log2FoldChange = resOrdered$log2FoldChange
+)
+
+# rank them from highest to lowest 
+ranked_list <- ranked_list[order(ranked_list$log2FoldChange, decreasing = TRUE),]
+
+# read in C2 collection 
+gene_set <- fgsea::gmtPathways('results/c2.all.v2023.2.Hs.symbols.gmt')
+
+# Set row names to row numbers
+rownames(ranked_list) <- NULL
+# Create a named vector of log2FoldChange with gene_names as names
+stats <- setNames(ranked_list$log2FoldChange, ranked_list$gene_names)
+
+gsea_result <- fgsea(
+  pathways = gene_set,
+  stats = stats, 
+  minSize = 15,  # Minimum gene set size
+  maxSize = 500  # Maximum gene set size
+)
+
+gsea_result <- gsea_result %>% arrange(desc(NES))
+
+# function to select rows 
+select_rows <- function(gsea_results, pathways) {
+  # Select top n rows based on NES
+  top_rows <- slice_max(gsea_results, order_by = NES, n = pathways)
+  # Select bottom n rows based on NES
+  bottom_rows <- slice_min(gsea_results, order_by = NES, n = pathways)
+  # Combine top and bottom rows
+  combined_results <- rbind(top_rows, bottom_rows)
+  return(combined_results)
+}
+
+# Plot the top/bottom pathways
+select_rows(gsea_result, 25) %>%
+  mutate(pathway = forcats::fct_reorder(pathway, NES)) %>%
+  ggplot() +
+  geom_bar(aes(x=pathway, y=NES, fill = factor(sign(NES))), stat='identity') +
+  scale_fill_manual(values = c('red', 'blue')) +
+  theme_minimal() +
+  ggtitle('fgsea results for Hallmark MSigDB gene sets') +
+  ylab('Normalized Enrichment Score (NES)') +
+  xlab('') +
+  coord_flip()
