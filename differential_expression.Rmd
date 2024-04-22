@@ -1,16 +1,22 @@
 library(DESeq2)
 library(tidyverse)
+library(dplyr)
 library(fgsea)
 library(data.table)
+library(ggplot2)
 library(RColorBrewer)
 library(patchwork)
+library("pcaExplorer")
+library(enrichR)
+
+# Perform DESeq2 analysis 
 
 # Read counts data
 counts <-  as.matrix(read.csv("results/filtered_matrix.csv", row.names = 'gene'))
 
 # Make coldata dataframe
 coldata <- data.frame(samples = colnames(counts), 
-  condition = c(rep('CTL', 3), rep('KO',3)), 
+  condition = c('CTL', 'KO',"CTL","KO","CTL","KO"), 
   row.names = 'samples')
 
 # Make condition into factor 
@@ -23,22 +29,19 @@ dds <- DESeqDataSetFromMatrix(countData = counts,
   colData = coldata,
   design = ~ condition)
 
-# Optionally filter data based on counts
-# keep <- rowSums(counts(dds)) >= 10
-
 # run DESeq on dataset 
 dds <- DESeq(dds)
+dst <- rlog(dds)
 
 # Contrast the DESeq results just by CTL and KO
 res <- results(dds, contrast = c('condition','CTL','KO'))
 
 # Ordered results based on smallest p-value 
 resOrdered <- res[order(res$pvalue),]
-
 # Set results as tibble
 resOrdered <- as_tibble(resOrdered)
 
-# Read in gene ids resulted from gtf file
+# read in gene_ids 
 ids <- read.csv("results/gene_ids.csv",
   header = FALSE, 
   col.names = c("gene_id", "gene_name"))
@@ -51,7 +54,27 @@ resOrdered$gene_id <- rownames(res)
 merged_res <- left_join(ids, resOrdered, by = "gene_id")
 merged_res <- merged_res[merged_res$gene_id %in% rownames(res), ]
 
-# Perform GSEA analysis 
+# add regulation column based on log2FoldChange 
+merged_res$regulation <- "No significance"
+merged_res$regulation[merged_res$log2FoldChange > 0.6 & merged_res$pvalue < 0.05] <- "Upregulated"
+merged_res$regulation[merged_res$log2FoldChange < -0.6 & merged_res$pvalue < 0.05] <- "Downregulated"
+
+# Define thresholds
+padj_threshold <- 0.05
+log2FC_threshold <- 1  # at least double the expression 
+
+# Filter DE genes based on thresholds
+DE_genes <- merged_res %>% filter(padj < padj_threshold, abs(log2FoldChange) >= log2FC_threshold)
+
+# Plot histogram of log2FoldChange
+ggplot(data = merged_res, aes(x = log2FoldChange)) +
+  geom_histogram(binwidth = 0.5, fill = "blue", color = 'black') +
+  labs(title = "Distribution of Log2Fold Changes from DE Genes",
+       x = "Log2FoldChange",
+       y = "Frequency") +
+  theme_minimal()
+  
+# Perform GSEA analysis and plot 
 # make list of log2FoldChange
 ranked_list <- data.frame(
   gene_names = merged_res$gene_name,
@@ -100,3 +123,36 @@ select_rows(gsea_result, 25) %>%
   ylab('Normalized Enrichment Score (NES)') +
   xlab('') +
   coord_flip()
+
+
+# PCA Analysis
+pcaExplorer(countmatrix = counts, coldata = coldata)
+
+# Volano Plot 
+merged_res$label <- ifelse(merged_res$regulation %in% c("Upregulated", "Downregulated") & merged_res$gene_name %in% head(merged_res[order(merged_res$pvalue), "gene_name"], 10), merged_res$gene_name, NA)
+
+# Add threshold lines
+ggplot(data = merged_res, aes(x = log2FoldChange, y = -log10(pvalue), col = regulation, label = label)) +
+  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = 'dashed') +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') +
+  geom_point(size = 0.5)  +
+  scale_color_manual(values = c("blue", "grey", "red"), # to set the colours of our variable
+                     labels = c("Downregulated", "Not significant", "Upregulated")) +
+  geom_text(data = merged_res %>% filter(!is.na(label)), aes(label = label), 
+            size = 3, nudge_x = 1, nudge_y = 2)
+
+# EnrichR analysis
+
+websiteLive <- getOption("enrichR.live")
+
+dbs <- listEnrichrDbs()
+# Select database 
+dbs <- c("GO_Biological_Process_2023")
+
+# Retrieve enriched pathways for a gene list related to breast cancer
+enriched <- enrichr(c("MTHFR", "CD52", "CYP4Z1", "TP73", "AURKAIP1", "MTOR", "MYCBP", "PIK3CD"), dbs)
+
+if (websiteLive) enriched[["GO_Biological_Process_2023"]]
+
+# Plot the enriched pathways
+plotEnrich(enriched[[1]], showTerms = 20, numChar = 40, y = "Count", orderBy = "P.value")
