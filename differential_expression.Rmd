@@ -125,7 +125,7 @@ select_rows(gsea_result, 25) %>%
   coord_flip()
 
 
-# PCA Analysis
+# PCA shows biological vairance between the samples. Given that PC1 has an 88% variance, this indicates that there is a chance that the samples have a biological difference, and that the differentially expressed genes are of interest and based on the conditions. 
 pcaExplorer(countmatrix = counts, coldata = coldata)
 
 # Volano Plot 
