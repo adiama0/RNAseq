@@ -23,7 +23,7 @@ coldata <- data.frame(samples = colnames(counts),
 coldata$condition <- as.factor(coldata$condition) 
 
 # Set control as reference point (tells R what sample data to compare values with)
-coldata$condition <- relevel(coldata$condition, ref='CTL')
+coldata$condition <- relevel(coldata$condition, ref='KO')
 
 dds <- DESeqDataSetFromMatrix(countData = counts,
   colData = coldata,
@@ -147,10 +147,10 @@ websiteLive <- getOption("enrichR.live")
 
 dbs <- listEnrichrDbs()
 # Select database 
-dbs <- c("GO_Biological_Process_2023")
+dbs <- c("GO_Biological_Process_2023", "DisGeNET")
 
 # Retrieve enriched pathways for a gene list related to breast cancer
-enriched <- enrichr(c("MTHFR", "CD52", "CYP4Z1", "TP73", "AURKAIP1", "MTOR", "MYCBP", "PIK3CD"), dbs)
+enriched <- enrichr(DE_genes$gene_name, dbs)
 
 if (websiteLive) enriched[["GO_Biological_Process_2023"]]
 
