@@ -31,10 +31,9 @@ dds <- DESeqDataSetFromMatrix(countData = counts,
 
 # run DESeq on dataset 
 dds <- DESeq(dds)
-dst <- rlog(dds)
 
 # Contrast the DESeq results just by CTL and KO
-res <- results(dds, contrast = c('condition','CTL','KO'))
+res <- results(dds, contrast = c('condition','KO','CTL'))
 
 # Ordered results based on smallest p-value 
 resOrdered <- res[order(res$pvalue),]
@@ -85,7 +84,7 @@ ranked_list <- data.frame(
 ranked_list <- ranked_list[order(ranked_list$log2FoldChange, decreasing = TRUE),]
 
 # read in C2 collection 
-gene_set <- fgsea::gmtPathways('results/c2.all.v2023.2.Hs.symbols.gmt')
+gene_set <- fgsea::gmtPathways('results/h.all.v2023.2.Hs.symbols.gmt')
 
 # Set row names to row numbers
 rownames(ranked_list) <- NULL
@@ -113,7 +112,7 @@ select_rows <- function(gsea_results, pathways) {
 }
 
 # Plot the top/bottom pathways
-select_rows(gsea_result, 25) %>%
+select_rows(gsea_result, 20) %>%
   mutate(pathway = forcats::fct_reorder(pathway, NES)) %>%
   ggplot() +
   geom_bar(aes(x=pathway, y=NES, fill = factor(sign(NES))), stat='identity') +
