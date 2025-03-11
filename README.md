@@ -1,38 +1,152 @@
-# RNAseq
-BF528 Project
+# RNA-Seq Analysis Pipeline  
 
-## Methods
-This dataset consists of 6 samples: 3 WT and 3 KO derived from a human source. Initial quality control was performed using FastQC v0.12.0 and visualized through MultiQC v1.17. Genome index was assembled using STAR v2.7.11b: overhang set as 99, the rest of the parameters were set as default. GTF and Fasta genome files were sourced from the gencode human database. Reads were aligned to the built genome index using STAR: output file was selected as unsorted BAM files, all other parameters remained default. Alignment QC was performed using samtools flagstats tool (v1.19.2). Gene counts was then generated from alignments using VERSE v0.1.5 with default parameters and the gencode GRCh38 primary assembly GTF. Counts were combined and filtered to remove genes that did not have a non-zero count in all 6 samples using an auxiliary phython code (v3.9). Normalization and differential expression analysis was performed with DESeq2 (v1.36.0) using default parameters comparing the WT and KO sample conditions. GSEA analysis was perfomed using fgsea package (v1.22.0). The C2 gene pathway collection was sourced from the human database for GSEA. PCA (v2.22.0) was performed on the samples using the countmatrix and countdata variables in order to visualize variance. Enrichment analysis was performed using enrichR (v3.2) using GO_Biological_Process_2023 gene set library on selected genes ("MTHFR", "CD52", "CYP4Z1", "TP73", "AURKAIP1", "MTOR", "MYCBP", "PIK3CD"). Genes were selected based on differential expression and relevance from GSEA analysis. 
+This repository contains a Snakemake-based RNA-Seq analysis pipeline designed to process raw sequencing data, perform quality control, align reads to a reference genome, quantify gene expression, and conduct differential expression analysis. The pipeline also includes downstream analyses such as Gene Set Enrichment Analysis (GSEA), Principal Component Analysis (PCA), and functional enrichment analysis.  
 
-## Questions to Address
-Briefly remark on the quality of the sequencing reads and the alignment statistics, make sure to specifically mention the following:
-  - Are there any concerning aspects of the quality control of your sequencing reads?
-  - Are there any concerning aspects of the quality control related to alignment?
-  - Based on all of your quality control, will you exclude any samples from further analysis?
+---
 
-Perform either a PCA or sample distance analysis on the counts matrix (refer to the DESeq2 vignette)
-  - Remark on the plot and what it indicates to you in terms of the success of the experiment
+## Table of Contents  
+1. [Overview](#overview)  
+2. [Pipeline Workflow](#pipeline-workflow)  
+3. [Dependencies](#dependencies)  
+4. [Usage](#usage)  
+5. [Results and Deliverables](#results-and-deliverables)  
+6. [Questions to Address](#questions-to-address)  
+7. [Acknowledgments](#acknowledgments)  
 
-Choose an appropriate FDR threshold to subset the differential expression results
-  - How many genes are significantly differentially expressed at your chosen threshold?
+---
 
-Compare the results from the GSEA analysis to the gene enrichment analysis using just the DE genes (DAVID, EnrichR)
-  - How similar are the results? Are there any notable differences?
-  - Do you expect there to be any differences? If so, why?
+## Overview  
 
-    
-## Deliverables
-Produce either of the following: 
-1. A sample-to-sample distance plot or a PCA plot
-2. A CSV of all of the results from DESeq2
-3. A histogram showing the distribution of log2fold changes from your DE genes
-4. A volcano plot that clearly distinguishes between significant and non-significant genes as well as whether those genes are
-   up- or downregulated based on their log2foldchange. 
-    - Label the top ten most significant genes on the plot
-6. Perform GSEA analysis on all of the genes discovered in the experiment
-    - You may choose an appropriate ranking metric
-    - Report the results you believe are most interesting in a single table / figure
-    - You may use the MSIGDB C2 canonical pathways collection or one of your choice
-7. Use the same thresholded DE results and perform a basic enrichment analysis using a well-known annotation tool such
-   as DAVID or enrichR
-     - Report the results you believe are most interesting in a single table / figure
+This project analyzes RNA-Seq data from 6 samples: 3 Wild-Type (WT) and 3 Knockout (KO) samples derived from a human source. The pipeline performs the following steps:  
+1. **Quality Control**: FastQC and MultiQC are used to assess the quality of raw sequencing reads.  
+2. **Alignment**: Reads are aligned to the human reference genome (GRCh38) using STAR.  
+3. **Gene Quantification**: Gene counts are generated using VERSE.  
+4. **Differential Expression Analysis**: DESeq2 is used to identify differentially expressed genes between WT and KO conditions.  
+5. **Downstream Analysis**: GSEA, PCA, and functional enrichment analysis are performed to interpret the results.  
+
+---
+
+## Pipeline Workflow  
+
+The pipeline consists of the following steps:  
+
+1. **Download Reference Genome and Annotation**:  
+   - The human reference genome (GRCh38) and GTF annotation file are downloaded from the GENCODE database.  
+
+2. **Quality Control**:  
+   - FastQC is used to generate quality reports for each sample.  
+   - MultiQC aggregates the FastQC reports into a single summary.  
+
+3. **Genome Indexing**:  
+   - STAR is used to build a genome index for alignment.  
+
+4. **Alignment**:  
+   - Reads are aligned to the reference genome using STAR, producing unsorted BAM files.  
+
+5. **Alignment Quality Control**:  
+   - Samtools flagstat is used to generate alignment statistics.  
+
+6. **Gene Quantification**:  
+   - VERSE is used to generate gene counts from the aligned reads.  
+
+7. **Count Matrix Filtering**:  
+   - A custom Python script (`concatenate_filter.py`) combines and filters gene counts to remove genes with zero counts across all samples.  
+
+8. **Differential Expression Analysis**:  
+   - DESeq2 is used to identify differentially expressed genes between WT and KO conditions.  
+
+9. **Downstream Analysis**:  
+   - GSEA is performed using the fgsea package and the MSigDB C2 canonical pathways collection.  
+   - PCA is performed to visualize sample variance.  
+   - Functional enrichment analysis is conducted using EnrichR.  
+
+---
+
+## Dependencies  
+
+The pipeline requires the following software and tools, managed via Conda environments:  
+
+### Core Dependencies  
+- **Snakemake**: Workflow management.  
+- **Python**: For custom scripts and data processing.  
+- **R**: For differential expression and downstream analysis.  
+
+### Conda Environments  
+The pipeline uses several Conda environments defined in the `envs/` folder:  
+- `fastqc_env.yml`: FastQC for quality control.  
+- `multiqc_env.yml`: MultiQC for report aggregation.  
+- `samtools_env.yml`: Samtools for alignment statistics.  
+- `star_env.yml`: STAR for alignment and genome indexing.  
+- `verse_env.yml`: VERSE for gene quantification.  
+- `base_end.yml`: Base environment for Snakemake and Python.  
+
+---
+
+## Usage  
+
+To run the pipeline:  
+
+1. Ensure Conda and Snakemake are installed.  
+2. Clone this repository and navigate to the project directory.  
+3. Run the pipeline using the following command:
+```bash
+snakemake --use-conda --cores <number_of_cores>
+```
+Replace `<number_of_cores>` with the desired number of CPU cores.
+
+## Results and Deliverables  
+
+The pipeline generates the following outputs:  
+
+1. **Quality Control Reports**:  
+   - FastQC reports for each sample.  
+   - MultiQC summary report (`results/multiqc_report.html`).  
+
+2. **Alignment Statistics**:  
+   - Samtools flagstat reports (`results/flagstat/`).  
+
+3. **Gene Count Matrix**:  
+   - Filtered gene count matrix (`results/filtered_matrix.csv`).  
+
+4. **Differential Expression Results**:  
+   - DESeq2 results (`results/differential_expression/`).  
+   - Histogram of log2FoldChange distribution.  
+   - Volcano plot highlighting significant genes.  
+
+5. **Downstream Analysis Results**:  
+   - GSEA results for MSigDB C2 pathways.  
+   - PCA plot visualizing sample variance.  
+   - EnrichR functional enrichment results.  
+
+---
+
+## Questions to Address  
+
+### Quality Control  
+1. **Sequencing Reads**:  
+   - Are there any concerning aspects of the quality control of your sequencing reads?  
+   - Are there any samples with low-quality reads that should be excluded?  
+
+2. **Alignment Statistics**:  
+   - Are there any concerning aspects of the alignment quality?  
+   - Based on the alignment statistics, will you exclude any samples from further analysis?  
+
+### Differential Expression Analysis  
+1. **PCA Plot**:  
+   - What does the PCA plot indicate about the biological variance between samples?  
+   - Does the plot suggest a clear separation between WT and KO conditions?  
+
+2. **Differential Expression Results**:  
+   - How many genes are significantly differentially expressed at your chosen FDR threshold?  
+   - What are the top 10 most significant genes, and how do they relate to the experimental conditions?  
+
+3. **GSEA and Enrichment Analysis**:  
+   - How do the results from GSEA compare to the functional enrichment analysis using EnrichR?  
+   - Are there any notable differences, and if so, why?  
+
+---
+
+## Acknowledgments  
+
+This project was completed as part of the BF528 course at [Boston University]. Special thanks to the instructor Joey Orofino for their guidance and support.  
+
